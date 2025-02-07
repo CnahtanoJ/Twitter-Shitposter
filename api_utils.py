@@ -323,7 +323,7 @@ def post_tweet(access_token_for_app):
     topic = generate_topic_from_caption(caption)
 
     # media_file = download_random_giphy_clip(topic)
-    media_file = r"D:\Chrome Downloads\giphy1080p.mp4"
+    media_file = ""
 
     if media_file:
         media_id = upload_media(media_file,access_token_for_app)
