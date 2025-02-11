@@ -171,14 +171,14 @@ def init_upload(file_path, access_token):
         'Authorization': f'Bearer {access_token}',
     }
 
-    files = {
-        'command': (None, 'INIT'),
-        'media_type': (None, 'video/mp4'),
-        'total_bytes': (None, str(file_size)),  # Ensure total_bytes is a string
-        'media_category': (None, 'tweet_video'),
+    request_data = {
+        'command': 'INIT',
+        'media_type': 'video/mp4',
+        'total_bytes': file_size,  # Ensure total_bytes is a string
+        'media_category': 'tweet_video',
     }
 
-    response = requests.post(UPLOAD_URL, headers=headers, files=files)
+    response = requests.post(UPLOAD_URL, headers=headers, params=request_data)
     if response.status_code == 202:
         media_id = response.json().get("data", {}).get("id")
         print(f"✅ INIT success! Media ID: {media_id}")
@@ -187,80 +187,88 @@ def init_upload(file_path, access_token):
         print("❌ INIT failed:", response.json())
         return None
 
-def append_upload(file_path, media_id, access_token, chunk_size= 2 * 1024 * 1024):
+def append_upload(file_path, media_id, access_token, chunk_size=3 * 1024 * 1024):
     """Step 2: APPEND - Upload file chunks to X API."""
     headers = {
         "Authorization": f"Bearer {access_token}"
     }
 
     file_size = os.path.getsize(file_path)
-    total_chunks = math.ceil(file_size / chunk_size)
-    print(total_chunks)
+    segment_id = 0
+    bytes_sent = 0
+
     with open(file_path, "rb") as f:
-        for i in range(total_chunks):
+        while bytes_sent < file_size:
             chunk = f.read(chunk_size)
 
-            # Format the request payload correctly
-            files = {
-                "command": (None, "APPEND"),
-                "media_id": (None, str(media_id)),  # Must be string
-                "segment_index": (None, str(i)),  # Must be string
-                "media": (file_path, chunk)  # Send chunk properly
+            files = {'media': ('chunk', chunk, 'application/octet-stream')}
+
+            data = {
+                "command": "APPEND",
+                "media_id": media_id,
+                "segment_index": segment_id,
             }
 
-            response = requests.post(UPLOAD_URL, headers=headers, files=files)
-            print(response)
+            response = requests.post(UPLOAD_URL, data=data,headers=headers, files=files)
+
             if response.status_code != 204:
-                print(f"❌ APPEND failed at chunk {i}:", response.json())
+                print(f"❌ APPEND failed: {response.json()}")
                 return False
 
-            print(f"✅ Chunk {i + 1}/{total_chunks} appended successfully.")
+            segment_id += 1
+            bytes_sent = f.tell()
 
+            print(f'{bytes_sent} bytes uploaded')
+
+    print("✅ All chunks uploaded successfully!")
     return True
 
-def check_upload_status(media_id, access_token, max_attempts=20, wait_time=12):
-    """Check upload status before finalizing"""
-    headers = {
-        "Authorization": f"Bearer {access_token}",
-    }
-    
-    querystring = {"media_id":f"{media_id}","command":"STATUS"}
-    
-    for attempt in range(max_attempts):
-        response = requests.get(UPLOAD_URL, headers=headers, params=querystring)
+def check_status(media_id, processing_info, headers):
+    """Checks video processing status for Twitter/X API using a loop."""
+    while processing_info:
+        state = processing_info.get('state')
+        print(f'Media processing status: {state}')
 
-        if response.status_code == 200:
-            processing_info = response.json().get('data',{}).get('processing_info',{})
-            state = processing_info.get("state", "unknown")
+        if state == 'succeeded':
+            return media_id
 
-            print(f"⏳ Upload status: {state} (Attempt {attempt + 1}/{max_attempts})")
+        if state == 'failed':
+            print("❌ Media processing failed.")
+            exit(0)
 
-            if state == "succeeded" or state == "ready":
-                print("✅ Upload is ready for finalization!")
-                return True
-            elif state in ["failed", "rejected"]:
-                print(f"❌ Upload failed: {processing_info}")
-                return False
+        check_after_secs = processing_info.get('check_after_secs', 10)  # Default 10s if missing
+        percentage = processing_info.get('percentage', 0) # Default 0% if missing
 
-        else:
-            print(f"⚠️ Failed to check status: {response}")
+        print(f'Checking after {check_after_secs} seconds..., currently {percentage}%')
+        time.sleep(check_after_secs)
 
-        time.sleep(wait_time)  # Wait before retrying
+        # Request new status
+        request_params = {
+            'command': 'STATUS',
+            'media_id': media_id
+        }
 
-    print("❌ Upload status check timed out.")
-    return False
+        response = requests.get(url=UPLOAD_URL, params=request_params, headers=headers)
+        
+        processing_info = response.json().get('processing_info', None)
 
 def finalize_upload(media_id, access_token):
     """Step 3: FINALIZE - Complete the upload"""
     headers = {
         'Authorization': f'Bearer {access_token}',
     }
-    files = {
-        'command': (None, 'FINALIZE'),
-        'media_id': (None, str(media_id)),
+
+    request_data = {
+        'command': 'FINALIZE',
+        'media_id': media_id,
     }
-    response = requests.post(UPLOAD_URL, headers=headers, files=files)
-    
+
+    response = requests.post(UPLOAD_URL, headers=headers, params=request_data)
+    processing_info = response.json().get('data',{}).get('processing_info',{})
+
+    check_status(media_id,processing_info,headers)
+
+    print(response)
     if response.status_code == 201:
         print(f"✅ FINALIZE success! Media ID: {media_id}")
         return media_id
@@ -281,14 +289,10 @@ def upload_media(file_path, access_token, media_type="video/mp4"):
         return None
 
     print('✅ Append Success')
-    print(check_upload_status(media_id,access_token))
-    if check_upload_status(media_id, access_token):
-        print(media_id)
-        print(access_token)
-        return finalize_upload(media_id, access_token)
-    else:
-        print("❌ Upload could not be finalized.")
-        return None
+
+    finalize = finalize_upload(media_id, access_token)
+    
+    return finalize
 
 def create_tweet_payload(caption, media_id=None):
     # Start building the payload with the required fields
