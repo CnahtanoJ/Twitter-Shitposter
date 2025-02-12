@@ -175,7 +175,7 @@ def init_upload(file_path, access_token):
         'command': 'INIT',
         'media_type': 'video/mp4',
         'total_bytes': file_size,  # Ensure total_bytes is a string
-        'media_category': 'tweet_video',
+        'media_category': 'amplify_video',
     }
 
     response = requests.post(UPLOAD_URL, headers=headers, params=request_data)
@@ -267,14 +267,6 @@ def finalize_upload(media_id, access_token):
     processing_info = response.json().get('data',{}).get('processing_info',{})
 
     check_status(media_id,processing_info,headers)
-
-    print(response)
-    if response.status_code == 201:
-        print(f"✅ FINALIZE success! Media ID: {media_id}")
-        return media_id
-    else:
-        print("❌ FINALIZE failed:", response.json())
-        return None
 
 def upload_media(file_path, access_token, media_type="video/mp4"):
     """Full upload process"""
