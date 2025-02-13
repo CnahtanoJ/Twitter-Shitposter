@@ -95,10 +95,8 @@ def get_twitter_tones(trend):
         return []
 
 def download_random_giphy_clip(topic):
-    """Fetch a short MP4 clip from Giphy based on a topic and save it to /kaggle/working/."""
     url = f"https://api.giphy.com/v1/clips/search?api_key={GIPHY_API_KEY}&q={topic}&limit=50&lang=en"
     response = requests.get(url)
-    print(response)
     if 200 <= response.status_code < 300:
         results = response.json().get("data", [])
         if results:
@@ -111,8 +109,29 @@ def download_random_giphy_clip(topic):
                 with open(clip_path, "wb") as file:
                     file.write(video_data)
                 return clip_path  # Return full path
-    print(response.status_code)
     print("Error fetching from Giphy or no MP4 available.")
+    return None
+
+def download_random_giphy_gif(topic):
+    url = f"https://api.giphy.com/v1/gifs/search?api_key={GIPHY_API_KEY}&q={topic}&limit=50&lang=en"
+    response = requests.get(url)
+
+    if 200 <= response.status_code < 300:
+        results = response.json().get("data", [])
+        if results:
+            random_clip = random.choice(results)  # Pick a random gif
+            gif_url = random_clip["images"].get("original", {}).get("url")  # Get gif version
+            
+            if gif_url:
+                gif_path = f"D:/Coding/Twitter Media/{topic}_gif.gif"
+
+                gif_data = requests.get(gif_url).content
+                with open(gif_path, "wb") as file:
+                    file.write(gif_data)
+                return gif_path  # Return full path
+
+    print(response.status_code)
+    print("Error fetching from Giphy or no Gif available.")
     return None
 
 def generate_ai_caption(current_trend,tone):
@@ -124,7 +143,7 @@ def generate_ai_caption(current_trend,tone):
     }
 
     data = {
-        "model": "llama3-70b-8192",
+        "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": config.SYSTEM_PROMPT_CAPTION},
             {"role": "user", "content": f"Generate a 250-270 characters tweet caption based on this topic: {current_trend}. You can refer to these top tweets for the current public sentiment, how human type a tweet, and the general context/consensus of the topic: {tone}"}
@@ -171,14 +190,25 @@ def init_upload(file_path, access_token):
         'Authorization': f'Bearer {access_token}',
     }
 
-    request_data = {
-        'command': 'INIT',
-        'media_type': 'video/mp4',
-        'total_bytes': file_size,  # Ensure total_bytes is a string
-        'media_category': 'amplify_video',
-    }
+    if file_path.lower().endswith(".mp4"):
+        request_data = {
+            'command': 'INIT',
+            'media_type': 'video/mp4',
+            'total_bytes': file_size,
+            'media_category': 'amplify_video',
+        }
+    elif file_path.lower().endswith(".gif"):
+        request_data = {
+            'command': 'INIT',
+            'media_type': 'image/gif',
+            'total_bytes': file_size,
+            'media_category': 'tweet_gif',
+        }
+    else:
+        raise ValueError("Unsupported file type. Only MP4 and GIF are allowed.")
 
     response = requests.post(UPLOAD_URL, headers=headers, params=request_data)
+
     if response.status_code == 202:
         media_id = response.json().get("data", {}).get("id")
         print(f"✅ INIT success! Media ID: {media_id}")
@@ -223,9 +253,16 @@ def append_upload(file_path, media_id, access_token, chunk_size=3 * 1024 * 1024)
     print("✅ All chunks uploaded successfully!")
     return True
 
-def check_status(media_id, processing_info, headers):
+def check_status(media_id, processing_info, access_token):
     """Checks video processing status for Twitter/X API using a loop."""
-    while processing_info:
+
+    retries=0
+
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+    }
+
+    while retries<30:
         state = processing_info.get('state')
         print(f'Media processing status: {state}')
 
@@ -249,8 +286,21 @@ def check_status(media_id, processing_info, headers):
         }
 
         response = requests.get(url=UPLOAD_URL, params=request_params, headers=headers)
-        
-        processing_info = response.json().get('processing_info', None)
+
+        # Handle request failures
+        if response.status_code == 200:
+            processing_info = response.json().get("data", {}).get("processing_info")
+        elif response.status_code == 404:
+            print("❌ Error: Media not found. Check if the media ID is correct or if the upload completed successfully.")
+            processing_info = None
+        elif response.status_code == 401:
+            print("❌ Error: Unauthorized request. Check your authentication (access token may be expired).")
+            processing_info = None
+        else:
+            print(f"❌ Unexpected error {response.status_code}: {response.text}")
+            processing_info = None
+
+        retries+=1
 
 def finalize_upload(media_id, access_token):
     """Step 3: FINALIZE - Complete the upload"""
@@ -266,9 +316,9 @@ def finalize_upload(media_id, access_token):
     response = requests.post(UPLOAD_URL, headers=headers, params=request_data)
     processing_info = response.json().get('data',{}).get('processing_info',{})
 
-    check_status(media_id,processing_info,headers)
+    return check_status(media_id,processing_info,access_token)
 
-def upload_media(file_path, access_token, media_type="video/mp4"):
+def upload_media(file_path, access_token):
     """Full upload process"""
     media_id = init_upload(file_path, access_token)
     if not media_id:
@@ -283,7 +333,7 @@ def upload_media(file_path, access_token, media_type="video/mp4"):
     print('✅ Append Success')
 
     finalize = finalize_upload(media_id, access_token)
-    
+    print(finalize)
     return finalize
 
 def create_tweet_payload(caption, media_id=None):
@@ -318,14 +368,19 @@ def post_tweet(access_token_for_app):
     caption = generate_ai_caption(trend, tone)
     topic = generate_topic_from_caption(caption)
 
-    # media_file = download_random_giphy_clip(topic)
-    media_file = ""
+    media_function = random.choice([
+        download_random_giphy_gif,
+        download_random_giphy_clip,
+        lambda x: None  # Function that returns None
+    ])
 
+    media_file = media_function(topic)
+    
     if media_file:
         media_id = upload_media(media_file,access_token_for_app)
     else:
         media_id = None
-    
+
     payload = create_tweet_payload(caption=caption, media_id=media_id)
 
     response = requests.request("POST", url, json=payload, headers=headers)
