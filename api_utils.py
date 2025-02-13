@@ -375,7 +375,7 @@ def post_tweet(access_token_for_app):
     ])
 
     media_file = media_function(topic)
-
+    
     if media_file:
         media_id = upload_media(media_file,access_token_for_app)
     else:
