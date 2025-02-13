@@ -9,7 +9,7 @@ pkce.generate_pkce()
 twitter_auth(pkce)
 ACCESS_TOKEN, REFRESH_TOKEN = twitter_token(pkce)
 
-max_tweets_per_day = 1
+max_tweets_per_day = 17
 tweets_posted_today = 0
 
 first_tweet_time = None
@@ -41,7 +41,7 @@ while tweets_posted_today < max_tweets_per_day:
             first_tweet_time = None
             continue
 
-        random_sleep_time = random.randint(600, 4920)  # Random sleep time between 10 minutes (600s) and 82 minutes (4920s)
+        random_sleep_time = random.randint(600, 4920)  # Random sleep time between 10 minutes (600s) and 182 minutes (10920)
         print(f"⏳ Waiting for {random_sleep_time} seconds before the next tweet...")
         time.sleep(random_sleep_time)
 
