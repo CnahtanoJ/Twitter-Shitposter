@@ -14,7 +14,7 @@ tweets_posted_today = 0
 
 first_tweet_time = None
 
-while tweets_posted_today < max_tweets_per_day:
+while tweets_posted_today < max_tweets_per_day:    
     if tweets_posted_today == 0:
         first_tweet_time = time.time()
 
@@ -41,7 +41,7 @@ while tweets_posted_today < max_tweets_per_day:
             first_tweet_time = None
             continue
 
-        random_sleep_time = random.randint(600, 4920)  # Random sleep time between 10 minutes (600s) and 182 minutes (10920)
+        random_sleep_time = random.randint(600, 10920)  # Random sleep time between 10 minutes (600s) and 182 minutes (10920)
         print(f"⏳ Waiting for {random_sleep_time} seconds before the next tweet...")
         time.sleep(random_sleep_time)
 

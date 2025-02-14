@@ -7,6 +7,7 @@ import math
 import random
 import tweepy
 import time
+import logging
 
 load_dotenv()
 
@@ -20,6 +21,12 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 APIFY_API_KEY = os.getenv("APIFY_API_KEY")
 GIPHY_API_KEY = os.getenv("GIPHY_API_KEY")
 UPLOAD_URL = 'https://api.x.com/2/media/upload'
+
+logging.basicConfig(
+    filename='app.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
 
 def get_twitter_trend():
     """Fetch trending topics from Apify's Twitter Trends Scraper, sort by tweet volume, and pick one randomly"""
@@ -146,7 +153,7 @@ def generate_ai_caption(current_trend,tone):
         "model": "llama-3.3-70b-versatile",
         "messages": [
             {"role": "system", "content": config.SYSTEM_PROMPT_CAPTION},
-            {"role": "user", "content": f"Generate a 250-270 characters tweet caption based on this topic: {current_trend}. You can refer to these top tweets for the current public sentiment, how human type a tweet, and the general context/consensus of the topic: {tone}"}
+            {"role": "user", "content": f"Generate a 50 to 233 characters (special characters like punctuations or japanese alphabet are treated like a normal english letter in character count) tweet caption based on this topic: {current_trend}. You can refer to these top tweets for the current public sentiment and the general context/consensus of the topic: {tone}"}
         ]
     }
 
@@ -368,11 +375,18 @@ def post_tweet(access_token_for_app):
     caption = generate_ai_caption(trend, tone)
     topic = generate_topic_from_caption(caption)
 
+    # Log the retrieved data
+    logging.info(f"Trend: {trend}")
+    logging.info(f"Tone: {tone}")
+    logging.info(f"Topic: {topic}")
+
     media_function = random.choice([
         download_random_giphy_gif,
         download_random_giphy_clip,
         lambda x: None  # Function that returns None
     ])
+
+    logging.info(f"Media function: {media_function}")
 
     media_file = media_function(topic)
     
@@ -388,6 +402,10 @@ def post_tweet(access_token_for_app):
     # Check if the tweet was posted successfully
     if response.status_code == 201:
         print(f"✅ Tweet posted: {caption}")
+        logging.info(f"Tweet posted: {caption}")
     else:
         print(f"❌ Failed to post tweet. Status code: {response.status_code}")
+        logging.info(f"Caption: {caption}")
+        logging.error(f"Failed to post tweet. Status code: {response.status_code}")
+        logging.error(f"Response: {response.json()}")
         print(response.json())

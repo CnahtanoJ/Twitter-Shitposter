@@ -74,14 +74,16 @@ def twitter_token(pkce_obj):
         print("Error getting token:", response.json())
 
 def refresh_access_token(refresh_token):
+    auth_string = f"{CLIENT_ID}:{CLIENT_SECRET}"
+    auth_header = base64.b64encode(auth_string.encode()).decode()
+
     headers = {
+        'Authorization': f'Basic {auth_header}',
         'Content-Type': 'application/x-www-form-urlencoded',
     }
     
     data = {
         'grant_type': 'refresh_token',
-        'client_id': CLIENT_ID,
-        'client_secret': CLIENT_SECRET,
         'refresh_token': refresh_token,
     }
     
