@@ -8,3 +8,5 @@ Notes:
   - https://apify.com
   - https://groq.com
   - https://developers.giphy.com/
+
+This is a side/fun project only.
