@@ -111,7 +111,7 @@ def download_random_giphy_clip(topic):
             mp4_url = random_clip["images"].get("original_mp4", {}).get("mp4")  # Get MP4 version
             
             if mp4_url:
-                clip_path = f"/kaggle/working/{topic}_clip.mp4"  # Save in specific directory
+                clip_path = f"D:/Folder/Subfolder/{topic}_clip.mp4"  # Save in specific directory
                 video_data = requests.get(mp4_url).content
                 with open(clip_path, "wb") as file:
                     file.write(video_data)
@@ -130,8 +130,7 @@ def download_random_giphy_gif(topic):
             gif_url = random_clip["images"].get("original", {}).get("url")  # Get gif version
             
             if gif_url:
-                gif_path = f"D:/Coding/Twitter Media/{topic}_gif.gif"
-
+                gif_path = f"D:/Folder/Subfolder/{topic}_gif.gif"
                 gif_data = requests.get(gif_url).content
                 with open(gif_path, "wb") as file:
                     file.write(gif_data)
