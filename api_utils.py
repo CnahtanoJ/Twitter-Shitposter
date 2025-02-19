@@ -24,7 +24,7 @@ logging.basicConfig(
 
 def get_twitter_trend():
     """Fetch trending topics from Apify's Twitter Trends Scraper, sort by tweet volume, and pick one randomly"""
-    url = f"https://api.apify.com/v2/actor-tasks/assuring_fade~twitter-trends-scraper/run-sync-get-dataset-items?token={APIFY_API_KEY}"
+    url = f"https://api.apify.com/v2/actor-tasks/your_name~twitter-trends-scraper/run-sync-get-dataset-items?token={APIFY_API_KEY}"
     
     response = requests.get(url)
 
@@ -52,7 +52,7 @@ def get_twitter_trend():
 
 def get_twitter_tones(trend):
     """Fetch tweets from Apify's Tweet Scraper using a specific trend and extract tweet texts."""
-    url = f"https://api.apify.com/v2/actor-tasks/assuring_fade~tweet-scraper/run-sync-get-dataset-items?token={APIFY_API_KEY}"
+    url = f"https://api.apify.com/v2/actor-tasks/your_name~tweet-scraper/run-sync-get-dataset-items?token={APIFY_API_KEY}"
     
     # Define the payload with the trend added to searchTerms
     payload = {
