@@ -5,18 +5,12 @@ import config
 import re
 import math
 import random
-import tweepy
 import time
 import logging
 
 load_dotenv()
 
 # X API Key
-BEARER_TOKEN = os.getenv("BEARER_TOKEN")
-ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
-ACCESS_SECRET = os.getenv("ACCESS_SECRET")
-CONSUMER_KEY = os.getenv("CONSUMER_KEY")
-CONSUMER_SECRET = os.getenv("CONSUMER_SECRET")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 APIFY_API_KEY = os.getenv("APIFY_API_KEY")
 GIPHY_API_KEY = os.getenv("GIPHY_API_KEY")
